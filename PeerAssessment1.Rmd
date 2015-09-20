@@ -1,0 +1,207 @@
+---
+title: "Reproducible Research Peer Assessment 1"
+author: "Mike Donnellan"
+date: "Sunday, September 20, 2015"
+output: html_document
+---
+
+##Background
+
+This R Markdown document was created to fulfil the requirements for Peer Assessment 1, the first project assignment of the Reproducible Research course offered via Coursera by Johns Hopkins University. Reproducible Research is course 5 of 9 in the Data Science Specialization.
+
+###From the assignment itself 
+(available at https://class.coursera.org/repdata-032/human_grading/view/courses/975145/assessments/3/submissions):
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+####Data
+The variables included in this dataset are:
+
+* steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+
+* date: The date on which the measurement was taken in YYYY-MM-DD format
+
+* interval: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+####Tasks
+Tasks performed to fulfil the requirements of this assignment include:
+
+1. load the data and transform it into a usable format
+
+1. calculate the total number of steps per day
+
+1. create a histogram of the total number of steps per day
+
+1. calculate and report the mean and median number of steps per day
+
+1. Create a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis).
+
+1. Determine and report which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps.
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs).
+
+1. Choose and implement a strategy for filling in all of the missing values in the dataset.
+
+1. Create a histogram of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day, using the dataset with imputed values in place of the missing values in the original dataset.
+
+1. Determine and report the differences between these results and those calculated in step 4 above, and describe the effect of imputing the missing values on the results.
+
+1. Using the dataset with the filled-in missing values, create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day, then create a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
+
+##The Work
+
+###Task 1: Load and Transform the Data, Performing Prerequisites
+Set the working directory (we assume this directory already exists, if not, please create it; code not supplied to avoid making changes to your system):
+```{r}
+setwd("C:/Users/mwdonnel/Documents/RCode/rr")
+```
+Now load the required libraries (if necessary, please install these libraries as may be required).
+
+```{r}
+library(knitr)
+#set knitr to show results and cache already-calculated results)
+opts_chunk$set(echo=TRUE,results="show",cache=TRUE)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+```
+Download the data and read it into a data frame.
+
+```{r}
+#put the data file download URL into a var
+dlURL <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+
+#put the destination path and filename into a var
+dlFileName <- "repdata_data_activity.zip"
+
+#download the data file
+download.file(dlURL,dlFileName)
+
+#decompress the data file
+dataFileList <- unzip(dlFileName)
+
+#the data file is activity.csv (determined by manual inspection of the .zip file),
+#so we'll call read.csv to get the data into the environment.
+
+dfActivity <- read.csv('activity.csv', 
+                        header = TRUE, 
+                        sep = ",",
+                        colClasses=c("numeric", "character", "numeric")
+                      )
+```
+####Pre-process/transform the data to make it usable for analysis
+Make the date column into an actual date, and since we need "interval" to
+be a factor, make it so.
+```{r}
+dfActivity$date <- as.Date(dfActivity$date, format = "%Y-%m-%d")
+dfActivity$interval <- as.factor(dfActivity$interval)
+```
+###Task 2: Calculate Total Number of Steps Per Day
+In SQL we might write something like SELECT SUM(Steps) FROM Activity GROUP BY Date.
+Here in R we'll use aggregate:
+
+```{r}
+dfStepsGroupedByDay <- aggregate(steps ~ date, dfActivity, sum)
+#now supply the column names:
+colnames(dfStepsGroupedByDay) <- c("Date","TotalStepsOnDate")
+```
+
+###Task 3: Plot Histogram of Total Number of Steps Per Day
+We'll use ggplot2 to create the histogram of steps per day:
+
+```{r}
+ggplot(dfStepsGroupedByDay, aes(x = TotalStepsOnDate)) + 
+       geom_histogram(color="darkblue", fill = "lightblue", binwidth = 2000) + 
+        labs(title="Total Steps per Day: Number Of Days Having StepCount In Range", 
+             x = "Total Steps per Day", y = "Count of Days Having Step Count in Range") 
+
+```
+
+###Task 4: Calculate and Report Mean and Median Number of Steps Per Day
+Straightforward, recalling that we have empty values:
+
+```{r}
+TotalStepsOnDateMean   <- mean(dfStepsGroupedByDay$TotalStepsOnDate, na.rm=TRUE)
+TotalStepsOnDateMedian   <- median(dfStepsGroupedByDay$TotalStepsOnDate, na.rm=TRUE)
+cat("Mean of total steps per day: ", TotalStepsOnDateMean, "\n")
+cat("Median of total steps per day: ", TotalStepsOnDateMedian, "\n")
+```
+
+###Task 5: Create a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+The required data frame is very similar to the one for steps per day, the only difference being we are summing per 5-minute intervale, rather than by date:
+```{r}
+dfStepsGroupedByInterval <- aggregate(as.integer(dfActivity$steps),
+                                      by = list(interval = as.integer(dfActivity$interval)),
+                                      FUN=mean,
+                                      na.rm=TRUE
+                                     )
+
+#now supply the column names:
+colnames(dfStepsGroupedByInterval) <- c("IntervalNumber","TotalStepsInInterval")
+head(dfStepsGroupedByInterval)
+str(dfStepsGroupedByInterval)
+ggplot(dfStepsGroupedByInterval, aes(x=IntervalNumber, y=TotalStepsInInterval)) +   
+        geom_line(color="green", size=1) +  
+        labs(title="Mean Number of Steps per 5-Minute Interval Averaged Across All Days", x="Interval Number", y="Mean Total Steps in Interval") 
+
+```
+
+###Task 6: Determine and report which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps
+Once again, straightforward:
+```{r}
+maxInterval <- dfStepsGroupedByInterval[which.max(dfStepsGroupedByInterval$TotalStepsInInterval),]
+cat("The interval with the maximum number of steps is ", maxInterval$IntervalNumber, " and the maximum number of steps is: ", maxInterval$TotalStepsInInterval, ".", "This is equivalent to the interval ending at 8 hours 40 minutes.", "\n")
+
+```
+
+###Task 7: Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+Straightforward:
+```{r}
+cat("The number of missing values in the input data set is: ", sum(is.na(dfActivity$steps)), "\n")
+```
+
+###Task 8: Choose and implement a strategy for filling in all of the missing values in the dataset
+Here we choose the cheasp solution, being out of time.  We'll stick the means in place of the NAs, creating a function to do so:
+```{r}
+ImputeMissingValues <- function(ds1, ds2) 
+{
+        NARow <- which(is.na(ds1$steps))
+        NAImpute <- unlist(lapply(NARow, FUN=function(idx)
+        								{
+									interval = ds1[idx,]$interval
+									ds2[ds2$IntervalNumber == interval,]$TotalStepsInInterval
+									}
+								  )
+							)
+        StepsImputed <- ds1$steps
+        StepsImputed[NARow] <- NAImpute
+        StepsImputed
+}
+
+dfActivityImputed <- data.frame(  
+        steps = ImputeMissingValues(dfActivity, dfStepsGroupedByInterval),  
+        date = dfActivity$date,  
+        interval = dfActivity$interval)
+```
+
+### Task 9:Create a histogram of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day, using the dataset with imputed values in place of the missing values in the original dataset.
+
+Same as above with different data frame:
+```{r}
+dfStepsGroupedByDayFilled <- aggregate(steps ~ date, dfActivityImputed, sum)
+#now supply the column names:
+colnames(dfStepsGroupedByDayFilled) <- c("Date","TotalStepsOnDate")
+
+ggplot(dfStepsGroupedByDayFilled, aes(x = TotalStepsOnDate)) + 
+       geom_histogram(color="darkblue", fill = "lightblue", binwidth = 2000) + 
+        labs(title="Total Steps per Day: Number Of Days Having StepCount In Range", 
+             x = "Total Steps per Day", y = "Count of Days Having Step Count in Range")
+
+TotalStepsOnDateMeanFilled   <- mean(dfStepsGroupedByDayFilled$TotalStepsOnDate, na.rm=TRUE)
+TotalStepsOnDateMedianFilled   <- median(dfStepsGroupedByDayFilled$TotalStepsOnDate, na.rm=TRUE)
+
+cat("Mean of total steps per day with imputed data: ", TotalStepsOnDateMeanFilled, "\n")
+cat("Median of total steps per day with imputed data: ", TotalStepsOnDateMedianFilled, "\n")
+```
