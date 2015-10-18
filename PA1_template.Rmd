@@ -183,7 +183,9 @@ cat("The number of missing values in the input data set is: ", sum(is.na(dfActiv
 ```
 
 ###Task 8: Choose and implement a strategy for filling in all of the missing values in the dataset
-Here we choose the cheap solution, being out of time.  We'll stick the means in place of the NAs, using an elegant and "R-like" solution found on stackoverflow (http://stackoverflow.com/questions/24847299/using-ifelse-to-replace-nas-in-one-data-frame-by-referencing-another-data-fram):
+Here we choose the cheap solution, being out of time.  We'll stick the means in place of the NAs, using an elegant and "R-like" solution found on stackoverflow (http://stackoverflow.com/questions/24847299/using-ifelse-to-replace-nas-in-one-data-frame-by-referencing-another-data-fram).
+
+The "strategy," to dignify it with that name, is for each interval with value NA, to replace it with the average number of steps for that particular interval, taken across all days in the data set.
 ```{r}
 
 #start clean with original data for imputation
